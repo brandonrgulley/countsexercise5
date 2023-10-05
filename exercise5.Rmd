@@ -1,0 +1,108 @@
+---
+title: "The effect of canopy on lunarphobia of Six U.S. Bat Species"
+author: "Brandon Gulley"
+date: "2023-10-05"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, echo=FALSE, include=FALSE}
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(knitr)      
+library(leaflet)
+library(hexbin)
+library(readxl)
+library(viridis)
+library(knitr)
+library(reshape2)
+library(quantreg)
+library(lubridate)
+library(ggfortify)
+library(easystats)
+library(arm)
+library(MASS)
+
+```
+
+# I: Six Bat Species Compared
+
+**Instead of just one species, I decided to look at all 6 that I am studying to see if the canopy is preventing the lunar cycle from affecting their foraging activity.**
+
+![](Images/untitled.png)
+
+```{r date, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+bats <- read.csv("data_master.csv")
+
+bats$time <- paste(bats$hour, bats$min, sep = ":")
+
+bats_1 <- bats %>% 
+  select_("site", "date", "time", "species", "pulses", "lum")
+
+bats_1$datetime <- paste(bats_1$date, bats_1$time, sep = " ")
+
+bats_1$datetime <- as.POSIXct(bats_1$datetime, format = "%Y-%m-%d %H:%M:%S")
+
+View(bats_1)
+
+```
+
+# II. Graphs
+
+**First, I built a linear graph to see what the trendline looked like. There was a downward slope to the trendline**
+
+```{r moonphase total, echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+
+moonplot1 <- ggplot(bats_1, aes(x=lum, y=pulses)) +
+  geom_point(aes(color=lum)) +
+  geom_smooth(method = "lm") +
+  labs(x = "Lunar Disk Luminosity (%)", y = "Detected Bat Activity (Pulses)", title = "Bat Activity in Response to Lunar Cycle")
+moonplot1
+
+```
+
+**Then I checked the histogram.**
+
+```{r histogram, echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+
+ggplot(data=bats_1, aes(pulses)) + 
+  geom_histogram(binwidth = 3) + 
+  labs(x="Pulses", y=NULL, title="Pulses Histogram")
+
+```
+
+# III. Checking the Model
+
+**I built a model on the relationship between activity, which I quantified in the amount of pulses emitted in total, as a response to the luminosity of the lunar disk in percent. Upon checking the model it appears to suffer from overdispersion.**
+
+```{r model1, echo=FALSE, include=TRUE}
+
+model1 <- glm(pulses ~ lum, family = poisson, data=bats_1)
+
+summary(model1)
+
+check_model(model1)
+
+```
+
+# IV: Addressing the Over-disperion
+
+**I tried to fix this by building a quasipoisson model, but it did not fix the overdispersion problem. This supports the prediction that the lunar cycle is not affecting the foraging activity of the bats.**
+
+```{r quasimodel, echo=FALSE, include=FALSE}
+
+model1_quasi <- glm(pulses~lum, family = quasipoisson, data = bats_1)
+
+```
+
+```{r quasi summary, echo=FALSE, include=TRUE}
+
+summary(model1_quasi)
+
+```
